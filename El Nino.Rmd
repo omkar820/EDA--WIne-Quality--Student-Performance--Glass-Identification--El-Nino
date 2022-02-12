@@ -1,0 +1,99 @@
+---
+title: "El Nino"
+author: "Omkar"
+date: "11/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+require(GGally)
+library(gridExtra)
+library(reshape)
+```
+
+```{r}
+elnino = read.csv("tao-all2.dat.gz", as.is = FALSE, sep = "", header = FALSE, na.strings=".")
+elnino_colm = read.csv("tao-all2.col", as.is = FALSE, sep = "", header = FALSE)
+names(elnino) <- c("obs","year","month","day","date","latitude","longtitude","zon.winds","mer.winds","humidity","air.temp","ss.temp")
+
+
+elnino = na.omit(elnino)
+
+summary(elnino)
+
+```
+```{r}
+year94 = elnino[elnino$year == 94,]
+year94 = subset(year94,select = -c(obs,date))
+
+summary(year94)
+head(year94)
+```
+```{r}
+library(corrplot)
+str(year94)
+
+E2 = cor(subset(year94,select = -c(year,month,day)), method = 'spearman')
+corrplot(E2, method="number")
+```
+```{r}
+#ss temp, air tem vs longitude and latitude
+a = ggplot(elnino,aes(x=longtitude,y=air.temp,colour = ss.temp)) + geom_point(position = position_dodge(width = .4)) +xlab("longtitude") +
+  ylab("Air.Temp") +
+  ggtitle("Scatterplot of Air.Temp vs Longitude")
+b = ggplot(elnino,aes(x=latitude,y=air.temp,colour = ss.temp)) + 
+  geom_point(position = position_dodge(width = .5))+
+  xlab("latitude") +
+  ylab("Air.Temp") +
+  ggtitle("Scatterplot of Air.Temp vs Latitude")
+grid.arrange(a, b, ncol=2)
+```
+
+```{r}
+year951 = subset(year95, select = -c(1,2,3,4,5))
+model = lm(ss.temp~.*., data = year951)
+
+summary.lm(model)
+par(mfrow= c(2,2))
+plot(model)
+
+
+a = outlier(year94, plot = FALSE)
+out <- boxplot(year94$air.temp, range = 2)$out
+out_ind <- which(year94$air.temp %in% c(out))
+out_ind
+
+glass[out_ind, ]
+year95<- year94[-which(year94$air.temp %in% c(out)),]
+boxplot(year95)
+
+```
+
+
+
+```{r}
+
+#time series plot
+par(mfcol=(c(2,2)))
+summary(year94)
+year95$time <- year95$month + year95$day/30
+
+plot(year95$time, year95$air.temp ,type="l",lty=2, xlab="Time",ylab="Air temp",col="red")
+plot(year95$time, year95$ss.temp ,type="l",lty=2, xlab="Time",ylab="Sea surface temp",col="orange")
+plot(year95$time, year95$humidity ,type="l",lty=2, xlab="Time",ylab="Humidity",col="yellow")
+plot(year95$time, year95$zon.winds ,type="l",lty=2, xlab="Time",ylab="Zonal wind",col="blue")
+
+first.half<- year95[year95$time<=6,]
+
+plot(first.half$time, first.half$air.temp ,type="l",lty=2, xlab="Time",ylab="Air temp",col="red")
+plot(first.half$time, first.half$ss.temp ,type="l",lty=2, xlab="Time",ylab="Sea surface temp",col="orange")
+plot(first.half$time, first.half$humidity ,type="l",lty=2, xlab="Time",ylab="Humidity",col="yellow")
+plot(first.half$time, first.half$zon.winds ,type="l",lty=2, xlab="Time",ylab="Zonal wind",col="blue")
+
+
+```
+
+
+
+

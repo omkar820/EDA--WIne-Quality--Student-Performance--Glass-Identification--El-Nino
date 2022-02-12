@@ -1,0 +1,79 @@
+---
+title: "Untitled"
+author: "Omkar"
+date: "10/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Importing the DATA
+
+
+```{r}
+
+red = read.csv('winequality-red.csv', header = TRUE, sep = ";", as.is = FALSE)
+white = read.csv('winequality-white.csv', header = TRUE, sep = ";", as.is = FALSE)
+red$code = 1
+white$code= 0
+red$code = as.factor(red$code)
+white$code = as.factor(white$code)
+
+df = list(red,white)
+library(reshape)
+data = merge_recurse(df)
+
+summary(data)
+head(data)
+hist(data$chlorides)
+data$chlorides = log(data$chlorides)
+str(data)
+```
+
+```{r}
+hist(data$quality, col = 'red', ylab = 'Frequency', xlab = 'Quality', main = 'Histogram of Wine Quality')
+```
+
+```{r, fig.width=8, fig.height=8}
+data1 = data
+library(corrplot)
+
+#Removing Code as it is not neccessary
+data2 = subset(data, select = c(-13))
+M1 = cor(data2, method = 'spearman')
+corrplot(M1, method="number")
+
+#After removing highly co-related variables
+data3 = subset(data2, select = c(-6,-8))
+M2 = cor(data3, method = 'spearman')
+corrplot(M2, method="number")
+str(data3)
+```
+
+```{r}
+
+```
+
+```{r}
+library(psych)
+a = outlier(data3, plot = TRUE)
+data4 = data3[-c(152, 259, 4381, 107, 82), ] 
+data3[c(152, 259, 4381, 107, 82), ]
+```
+
+```{r}
+
+model = lm(quality~., data = data4)
+smodel = step(model,trace = FALSE)
+summary(smodel)
+par(mfrow= c(2,2))
+plot(smodel)
+```
+
+
+
+
+
+

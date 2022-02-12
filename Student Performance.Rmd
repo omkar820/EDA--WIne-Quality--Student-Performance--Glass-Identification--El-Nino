@@ -1,0 +1,255 @@
+---
+title: "Untitled"
+author: "Omkar"
+date: "11/01/2022"
+output: html_document
+---
+
+
+```{r message=FALSE}
+packages <- c("RCurl","data.table","tidyverse","reshape2", "ggplot2","gridExtra")
+sapply(packages, require, character.only=T)
+```
+
+
+Reading files 
+```{r}
+math <- fread("student-mat.csv", stringsAsFactors=T)
+port <- fread("student-por.csv", stringsAsFactors=T)
+summary(math)
+summary(port)
+```
+
+
+```{r, include=F}
+library(tidyverse)
+```
+Adding a variable
+```{r}
+math$average <- round(apply(select(math, G1, G2, G3), 1, mean), 2)
+port$average <- round(apply(select(port, G1, G2, G3), 1, mean), 2)
+math$subject<- rep("Math", nrow(math))
+port$subject<- rep("Portugese", nrow(port))
+```
+Combining two datasets
+```{r, tidy=T}
+data <- rbind(math, port)
+str(data)
+summary(data)
+head(data)
+```
+### Manipulate the data
+Any missing values?
+```{r, warning=FALSE}
+sum(is.na(data))
+```
+
+```{r}
+final_grade_math = math
+good = math[((math$G3>=15) & (math$G3<= 20))]
+fair = math[((math$G3>=10) & (math$G3<= 14))]
+poor = math[((math$G3>=0) & (math$G3<= 9))]
+good$grade = c("GOOD")
+fair$grade = c("FAIR")
+poor$grade = c("POOR")
+
+final_grade_math = list(good,poor, fair)
+library(reshape)
+final_grade_math = (merge_recurse(final_grade_math))
+
+
+final_grade_port = port
+goodp = port[((port$G3>=15) & (port$G3<= 20))]
+fairp = port[((port$G3>=10) & (port$G3<= 14))]
+poorp = port[((port$G3>=0) & (port$G3<= 9))]
+goodp$grade = c("GOOD")
+fairp$grade = c("FAIR")
+poorp$grade = c("POOR")
+
+final_grade_port = list(goodp,poorp, fairp)
+
+final_grade_port = (merge_recurse(final_grade_port))
+final_grade_math$grade =  as.factor(final_grade_math$grade)
+final_grade_port$grade =  as.factor(final_grade_port$grade)
+final_grade = list(final_grade_math, final_grade_port)
+final_grade = merge_recurse(final_grade)
+plot(final_grade$grade, ylim = c(0, 700), xlab = 'FINAL GRADE', ylab = ' Number of Students',  main = 'Final Grade vs No of Students')
+
+```
+
+```{r, fig.width=8, fig.height=8}
+library(corrplot)
+newmath = (subset(math, select = c(3, 7,8,14,15,25,26,27,28,29,30,31,32,33)))
+newport = (subset(port, select = c(3, 7,8,14,15,25,26,27,28,29,30,31,32,33)))
+S1 = cor(newmath, method = 'spearman')
+corrplot(S1, method="number")
+
+S2 = cor(newport, method = 'spearman')
+corrplot(S2, method="number")
+
+
+str(newdata)
+newdata = (subset(data, select = c(3, 7,8,14,15,25,26,27,28,29,30,31,32)))
+S3 = cor(newdata, method = 'spearman')
+corrplot(S3, method="number")
+
+```
+```{r}
+library(psych)
+a = outlier(newmath, plot = TRUE)
+```
+
+
+#### Tidy variables
+Support categories
+```{r}
+data$support <- "0"
+data[schoolsup=="yes"& famsup=="yes"]$support<- "both"
+data[schoolsup=="yes"& famsup!="yes"]$support<- "school"
+data[schoolsup!="yes"& famsup=="yes"]$support<- "family"
+data[schoolsup!="yes"& famsup!="yes"]$support<- "none"
+data$support <- as.factor(data$support)
+data <- select(data, -c("schoolsup","famsup"))
+```
+Split the data set to analyze
+```{r, include=F}
+family<- select(data, c(5:10, 12, 22, 29:33))
+personal<- select(data, -c(5:10, 12, 22))
+```
+Family set
+```{r, echo=F}
+head(family)
+```
+Personal set
+```{r, echo=F}
+head(personal)
+```
+Plotting the correlation plot
+
+```{r, echo=F, message=F, fig.width=10, fig.height=7, fig.align="center"}
+graph <- function(data, x, y){
+	a <- enquo(x)
+	b <- enquo(y)
+	dt<- enquo(data)
+	ggplot(data, aes(!!a, !!b))+ 
+		geom_smooth(method=lm,se=T, color="black")+
+		geom_jitter(alpha=0.5, color="blue")+
+		labs(title= deparse(substitute(data)), subtitle=nrow(data))
+}
+p1<- graph(math, G1, G3)
+p2<- graph(math, G2, G3)
+p3<- graph(port, G1, G3)
+p4<- graph(port, G2, G3)
+grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
+```
+
+
+#### **1. FAMILY SIZE AND PARENTAL STATUS**
+Firstly, consider the family dataset. Let's see if family size affects a student's grade
+
+```{r, echo=F, fig.width=10, fig.height=7, fig.align="center"}
+family %>%
+	gather(key=test, value=grade, -c(1:8, 13)) %>%
+	ggplot(aes(x=famsize, y=grade, fill=famsize))+
+	geom_boxplot(alpha=0.5)+
+	geom_jitter(size=0.4, alpha=0.8)+
+	theme(legend.position="none")+
+	facet_wrap(~test)+
+	xlab("Family size")
+```
+
+How about parental status?
+
+```{r, echo=F, fig.width=10, fig.height=7, fig.align="center"}
+family %>%
+	gather(key=test, value=grade, -c(1:8, 13)) %>%
+	ggplot(aes(x=Pstatus, y=grade, fill=Pstatus))+
+	geom_boxplot(alpha=0.5)+
+	facet_wrap(~test)+ geom_jitter(size=0.4, alpha=0.8)+
+	theme(
+      legend.position="none",
+    )+
+	xlab("Parental status")
+```
+ 
+```{r, eval=F}
+t.test(average~famsize,data=family, var.equal=T, alternative="greater")
+##P-value=0.9772
+t.test(average~Pstatus,data=family, var.equal=T, alternative="greater")
+##Pvalue=0.3048
+```
+
+
+```{r eval=T}
+c(50,4)
+t.test(x=c(50,4), n=c(923,121), correct=T)
+t.test(x=c(45,9), n=c(738,306), correct=T)
+```
+
+
+#### **2. MOTHER'S AND FATHER'S JOB**
+```{r, fig.align="center", echo=F, fig.width=12, fig.height=5}
+family %>%
+	select(Mjob, Fjob, average)%>%
+	gather(key=Parent, value=job, -average) %>%
+	ggplot(aes(job, average, fill=Parent))+
+	geom_boxplot(varwidth=T, alpha=0.5)+
+	xlab("Parents' jobs")+
+	scale_fill_discrete(labels=c("Father","Mother"))
+```
+```{r}
+
+model1 = lm(average~Mjob, family)
+summary(model1)
+
+```
+
+```{r}
+
+model2 = lm(average~Fjob, family)
+summary(model2)
+
+```
+
+#### **3. MOTHER'S AND FATHER'S EDUCATION**
+```{r, fig.align="center", echo=F, fig.width=12, fig.height=5}
+family %>%
+	select(Medu, Fedu, average) %>%
+	gather(key=Parent, value=education, -average) %>% 
+	ggplot(aes(x= factor(education), y= average, fill=Parent))+
+	geom_boxplot(varwidth=T, alpha=0.5)+
+	xlab("Parents' education")+
+	scale_fill_discrete(labels=c("Father","Mother"))
+```
+```{r}
+model3 = lm(average~Medu, family)
+summary(model3)
+```
+```{r}
+model4 = lm(average~Fedu, family)
+summary(model4)
+```
+Students whose parents' education is at **primary** level tend to have significantly lover average score than others, and students whose parents reach **higher** education have significantly higher average score.
+
+#### **4. FAMILY RELATIONSHIP**
+```{r, fig.align="center", echo=F, fig.width=12, fig.height=5}
+family %>%
+	select(famrel,average) %>%
+	ggplot(aes(x=factor(famrel),y=average, fill=factor(famrel)))+
+	geom_violin(width=0.5, alpha=0.5)+
+	geom_boxplot(width=0.1, color="black", alpha=0.2)+
+	theme(legend.position="none")+
+	xlab("Family relationship")
+```
+```{r}
+kruskal.test(average~famrel, family)
+```
+P-value is large, indicating that family relationship doesn't imply much about a student's performance.
+
+### Takeaways:
+ 
+ - Parents' education and parents' jobs are main indicator of a student's overall performance. 
+ - Between the two factor, education factor confirms an common presumption that children will benefit from parents with a degree in higher education. Meanwhile, the job factor reveals more interesting information that the students who have mother working in health industry and father working as teachers tend to perform better overall.
+
+```
+

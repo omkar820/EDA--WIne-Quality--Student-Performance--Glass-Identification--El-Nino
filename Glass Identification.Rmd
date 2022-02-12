@@ -1,0 +1,86 @@
+---
+title: "Glass Identification"
+author: "Omkar"
+date: "11/01/2022"
+output: html_document
+---
+
+
+
+```{r}
+library(ggplot2)
+require(GGally)
+library(gridExtra)
+library(reshape)
+# Glass Identifiction
+
+glass = read.csv('glass.data', header = FALSE, as.is = FALSE)
+names = c('Id','RI','Na','Mg','Al','Si','K','Ca','Ba','Fe','glass_type')
+names(glass) = names
+glass = subset(glass, select = c(-1) )
+
+
+
+a = outlier(glass, plot = FALSE)
+out <- boxplot(glass$RI, range = 2)$out
+out_ind <- which(glass$RI %in% c(out))
+out_ind
+
+glass[out_ind, ]
+glass1<- glass[-which(glass$RI %in% c(out)),]
+boxplot(glass1)
+
+min_max_norm <- function(x) {
+    (x - min(x)) / (max(x) - min(x))
+}
+glass_norm <- as.data.frame(lapply(glass1[1:9], min_max_norm))
+glass_norm$glass_type = glass1$glass_type
+summary(glass_norm)
+summary(glass1)
+head(glass_norm)
+```
+
+
+
+
+
+
+```{r}
+hist(glass$glass_type, main = "Histogram of Glass Type", xlab = "Glass Type", ylab= "Count")
+```
+```{r}
+library(corrplot)
+str(glass)
+
+E2 = cor(glass_norm, method = 'spearman')
+corrplot(E2, method="number")
+```
+```{r}
+ggpairs(glass_norm)
+```
+
+```
+
+
+```{r}
+plot1<-ggplot(glass,aes(x = Ca, y = RI)) + geom_point() +geom_smooth(method = "lm")
+plot2<-ggplot(glass,aes(x = Si, y = RI)) + geom_point() +geom_smooth(method = "lm")
+grid.arrange(plot1, plot2, ncol=2)
+```
+```{r}
+model = lm(glass_type~.*., data = glass)
+smodel = step(model, trace = FALSE)
+summary(smodel)
+par(mfrow =c(2,2))
+plot(smodel)
+```
+
+
+
+
+
+
+
+
+
+
